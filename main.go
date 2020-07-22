@@ -63,7 +63,7 @@ func main() {
 		if redirect != "" {
 			c.Redirect(http.StatusMovedPermanently, redirect)
 		} else {
-			c.JSON(http.StatusNotFound, "Redirect url undefined!")
+			c.String(http.StatusNotFound, "Redirect url undefined!")
 		}
 	})
 
