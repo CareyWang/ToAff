@@ -1,5 +1,5 @@
 FROM golang:1.14-alpine AS dependencies
-WORKDIR /app
+WORKDIR /
 RUN go env -w GO111MODULE="on"
 
 COPY go.sum go.mod ./
