@@ -14,4 +14,4 @@ FROM scratch
 WORKDIR /app
 COPY --from=build /app/toaff ./
 EXPOSE 8006
-ENTRYPOINT ["/toaff"]
+ENTRYPOINT ["/app/toaff"]
