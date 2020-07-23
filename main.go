@@ -9,9 +9,11 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 const localConfigPath = "config.json"
+var lastUpdateTime int64
 
 func main() {
 	configUrl := flag.String("u", "", "Remote config")
@@ -19,8 +21,35 @@ func main() {
 	flag.Parse()
 
 	// 引入配置
+	configMap := loadConfig(*configUrl)
+
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.Default()
+
+	router.GET("/", func(c *gin.Context) {
+		host := c.Request.Header.Get("X-Forwarded-Host")
+		suffix := strings.Split(host, ".")[0]
+		redirect := configMap[suffix]
+		log.Println(host, suffix, redirect)
+
+		// 未获取到url时，重新加载配置
+		if redirect == "" && time.Now().Unix() - lastUpdateTime > 3600 {
+			configMap = loadConfig(*configUrl)
+		}
+
+		if redirect != "" {
+			c.Redirect(http.StatusMovedPermanently, redirect)
+		} else {
+			c.String(http.StatusNotFound, "Redirect url undefined!")
+		}
+	})
+
+	router.Run(fmt.Sprintf(":%d", *port))
+}
+
+func loadConfig(configUrl string) map[string]string {
 	var config string
-	if *configUrl == "" {
+	if configUrl == "" {
 		// TODO: 引入外部配置
 		content, err := ioutil.ReadFile(localConfigPath)
 		if err != nil {
@@ -30,7 +59,7 @@ func main() {
 		config = string(content)
 
 	} else {
-		response, err := http.Get(*configUrl)
+		response, err := http.Get(configUrl)
 		defer response.Body.Close()
 
 		if err != nil {
@@ -41,7 +70,6 @@ func main() {
 		config = string(body)
 	}
 
-	log.Println(config)
 	if len(config) == 0 {
 		panic("Config not found!")
 	}
@@ -52,20 +80,9 @@ func main() {
 		panic("Invalid Config!")
 	}
 
-	gin.SetMode(gin.ReleaseMode)
-	router := gin.Default()
+	lastUpdateTime = time.Now().Unix()
+	log.Printf("%d: 更新配置!", lastUpdateTime)
+	log.Println(config)
 
-	router.GET("/", func(c *gin.Context) {
-		host := c.Request.Header.Get("X-Forwarded-Host")
-		suffix := strings.Split(host, ".")[0]
-		redirect := configMap[suffix]
-		log.Println(host, suffix, redirect)
-		if redirect != "" {
-			c.Redirect(http.StatusMovedPermanently, redirect)
-		} else {
-			c.String(http.StatusNotFound, "Redirect url undefined!")
-		}
-	})
-
-	router.Run(fmt.Sprintf(":%d", *port))
+	return configMap
 }
