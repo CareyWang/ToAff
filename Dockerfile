@@ -12,6 +12,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o toaff main.go
 
 FROM scratch
 WORKDIR /app
+COPY --from=build /etc/ssl/certs /etc/ssl/certs
 COPY --from=build /app/toaff ./
 EXPOSE 8006
 ENTRYPOINT ["/app/toaff"]
